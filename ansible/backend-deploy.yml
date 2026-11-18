@@ -1,0 +1,117 @@
+
+---
+- name: Deploy TravelMemory Express Backend
+  hosts: web
+  become: true
+  gather_facts: true
+
+  vars:
+    app_dir: /opt/travelmemory/backend
+    app_user: ubuntu
+
+  tasks:
+    - name: Create backend directory
+      ansible.builtin.file:
+        path: "{{ app_dir }}"
+        state: directory
+        owner: "{{ app_user }}"
+        group: "{{ app_user }}"
+        mode: "0755"
+
+    - name: Copy backend source files
+      ansible.builtin.copy:
+        src: "../TravelMemory/backend/{{ item }}"
+        dest: "{{ app_dir }}/{{ item }}"
+        owner: "{{ app_user }}"
+        group: "{{ app_user }}"
+        mode: "0644"
+      loop:
+        - index.js
+        - config.js
+        - conn.js
+        - package.json
+        - package-lock.json
+      notify: Restart backend
+
+    - name: Copy backend source directories
+      ansible.builtin.copy:
+        src: "../TravelMemory/backend/{{ item }}/"
+        dest: "{{ app_dir }}/{{ item }}/"
+        owner: "{{ app_user }}"
+        group: "{{ app_user }}"
+        directory_mode: "0755"
+        mode: "0644"
+      loop:
+        - controllers
+        - middleware
+        - models
+        - routes
+      notify: Restart backend
+
+    - name: Install production dependencies
+      ansible.builtin.command:
+        cmd: npm ci --omit=dev
+        chdir: "{{ app_dir }}"
+      become_user: "{{ app_user }}"
+      register: npm_install
+      changed_when: npm_install.rc == 0
+      notify: Restart backend
+
+    - name: Create uploads directory
+      ansible.builtin.file:
+        path: "{{ app_dir }}/uploads"
+        state: directory
+        owner: "{{ app_user }}"
+        group: "{{ app_user }}"
+        mode: "0750"
+
+    - name: Deploy backend environment file
+      ansible.builtin.template:
+        src: templates/backend.env.j2
+        dest: "{{ app_dir }}/.env"
+        owner: "{{ app_user }}"
+        group: "{{ app_user }}"
+        mode: "0600"
+      no_log: true
+      notify: Restart backend
+
+    - name: Deploy systemd service
+      ansible.builtin.template:
+        src: templates/travelmemory-backend.service.j2
+        dest: /etc/systemd/system/travelmemory-backend.service
+        owner: root
+        group: root
+        mode: "0644"
+      notify: Restart backend
+
+    - name: Enable backend service
+      ansible.builtin.systemd:
+        name: travelmemory-backend
+        daemon_reload: true
+        enabled: true
+        state: started
+
+    - name: Apply pending service restart
+      ansible.builtin.meta: flush_handlers
+
+    - name: Verify backend health
+      ansible.builtin.uri:
+        url: http://127.0.0.1:3001/health
+        method: GET
+        status_code: 200
+        return_content: true
+      register: backend_health
+      retries: 5
+      delay: 5
+      until: backend_health.status == 200
+
+    - name: Display backend health
+      ansible.builtin.debug:
+        var: backend_health.json
+
+  handlers:
+    - name: Restart backend
+      ansible.builtin.systemd:
+        name: travelmemory-backend
+        daemon_reload: true
+        state: restarted

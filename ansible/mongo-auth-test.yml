@@ -1,0 +1,43 @@
+
+---
+- name: Verify MongoDB authentication
+  hosts: db
+  become: true
+  gather_facts: false
+
+  tasks:
+    - name: Verify MongoDB administrator login
+      community.mongodb.mongodb_shell:
+        login_host: 127.0.0.1
+        login_port: 27017
+        login_user: travelmemory_admin
+        login_password: "{{ mongo_admin_password }}"
+        login_database: admin
+        eval: "db.adminCommand({ ping: 1 })"
+        mongo_cmd: mongosh
+      vars:
+        ansible_python_interpreter: /opt/mongodb-venv/bin/python
+      register: admin_test
+      no_log: true
+
+    - name: Report administrator login result
+      ansible.builtin.debug:
+        msg: "MongoDB administrator authentication successful"
+
+    - name: Verify TravelMemory application login
+      community.mongodb.mongodb_shell:
+        login_host: 127.0.0.1
+        login_port: 27017
+        login_user: travelmemory_app
+        login_password: "{{ mongo_app_password }}"
+        login_database: travelmemory
+        eval: "db.runCommand({ ping: 1 })"
+        mongo_cmd: mongosh
+      vars:
+        ansible_python_interpreter: /opt/mongodb-venv/bin/python
+      register: app_test
+      no_log: true
+
+    - name: Report application login result
+      ansible.builtin.debug:
+        msg: "TravelMemory application authentication successful"

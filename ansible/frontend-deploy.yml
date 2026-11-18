@@ -1,0 +1,129 @@
+
+---
+- name: Deploy TravelMemory React Frontend
+  hosts: web
+  become: true
+
+  vars:
+    frontend_dir: /opt/travelmemory/frontend
+    web_root: /var/www/travelmemory
+
+  tasks:
+    - name: Install Nginx
+      ansible.builtin.apt:
+        name: nginx
+        state: present
+        update_cache: true
+
+    - name: Create frontend directory
+      ansible.builtin.file:
+        path: "{{ frontend_dir }}"
+        state: directory
+        owner: ubuntu
+        group: ubuntu
+        mode: "0755"
+
+    - name: Copy frontend package files
+      ansible.builtin.copy:
+        src: "../TravelMemory/frontend/{{ item }}"
+        dest: "{{ frontend_dir }}/{{ item }}"
+        owner: ubuntu
+        group: ubuntu
+        mode: "0644"
+      loop:
+        - package.json
+        - package-lock.json
+
+    - name: Copy React source directories
+      ansible.builtin.copy:
+        src: "../TravelMemory/frontend/{{ item }}/"
+        dest: "{{ frontend_dir }}/{{ item }}/"
+        owner: ubuntu
+        group: ubuntu
+        directory_mode: "0755"
+        mode: "0644"
+      loop:
+        - src
+        - public
+
+    - name: Install frontend dependencies
+      ansible.builtin.command:
+        cmd: npm ci
+        chdir: "{{ frontend_dir }}"
+      become_user: ubuntu
+      changed_when: true
+
+    - name: Build React frontend
+      ansible.builtin.command:
+        cmd: npm run build
+        chdir: "{{ frontend_dir }}"
+      environment:
+        CI: "false"
+        REACT_APP_BACKEND_URL: "/"
+      become_user: ubuntu
+      changed_when: true
+
+    - name: Create Nginx document root
+      ansible.builtin.file:
+        path: "{{ web_root }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Copy React build to Nginx
+      ansible.builtin.copy:
+        src: "{{ frontend_dir }}/build/"
+        dest: "{{ web_root }}/"
+        remote_src: true
+        owner: root
+        group: root
+        mode: preserve
+
+    - name: Configure Nginx
+      ansible.builtin.template:
+        src: templates/travelmemory-nginx.conf.j2
+        dest: /etc/nginx/sites-available/travelmemory
+        owner: root
+        group: root
+        mode: "0644"
+
+    - name: Enable TravelMemory site
+      ansible.builtin.file:
+        src: /etc/nginx/sites-available/travelmemory
+        dest: /etc/nginx/sites-enabled/travelmemory
+        state: link
+
+    - name: Disable default Nginx site
+      ansible.builtin.file:
+        path: /etc/nginx/sites-enabled/default
+        state: absent
+
+    - name: Validate Nginx configuration
+      ansible.builtin.command: nginx -t
+      changed_when: false
+
+    - name: Restart Nginx
+      ansible.builtin.systemd:
+        name: nginx
+        state: restarted
+        enabled: true
+
+    - name: Verify React homepage
+      ansible.builtin.uri:
+        url: http://127.0.0.1/
+        status_code: 200
+      register: homepage
+
+    - name: Verify Backend through Nginx
+      ansible.builtin.uri:
+        url: http://127.0.0.1/health
+        status_code: 200
+        return_content: true
+      register: api_health
+
+    - name: Display deployment results
+      ansible.builtin.debug:
+        msg:
+          - "Frontend HTTP status: {{ homepage.status }}"
+          - "Backend health: {{ api_health.json }}"

@@ -1,0 +1,68 @@
+
+---
+- name: Install Node.js on TravelMemory Web Server
+  hosts: web
+  become: true
+
+  tasks:
+    - name: Install required packages
+      ansible.builtin.apt:
+        name:
+          - curl
+          - ca-certificates
+          - gnupg
+        state: present
+        update_cache: true
+
+    - name: Download NodeSource signing key
+      ansible.builtin.get_url:
+        url: https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key
+        dest: /tmp/nodesource-repo.gpg.key
+        mode: "0644"
+
+    - name: Convert NodeSource signing key
+      ansible.builtin.command:
+        cmd: >
+          gpg --dearmor
+          --output /usr/share/keyrings/nodesource.gpg
+          /tmp/nodesource-repo.gpg.key
+        creates: /usr/share/keyrings/nodesource.gpg
+
+    - name: Add Node.js 22 repository
+      ansible.builtin.deb822_repository:
+        name: nodesource
+        types:
+          - deb
+        uris:
+          - https://deb.nodesource.com/node_22.x
+        suites:
+          - nodistro
+        components:
+          - main
+        architectures:
+          - amd64
+        signed_by: /usr/share/keyrings/nodesource.gpg
+        state: present
+        enabled: true
+
+    - name: Install Node.js
+      ansible.builtin.apt:
+        name: nodejs
+        state: present
+        update_cache: true
+
+    - name: Verify Node.js version
+      ansible.builtin.command: node --version
+      register: node_version
+      changed_when: false
+
+    - name: Verify npm version
+      ansible.builtin.command: npm --version
+      register: npm_version
+      changed_when: false
+
+    - name: Display installed versions
+      ansible.builtin.debug:
+        msg:
+          - "Node.js: {{ node_version.stdout }}"
+          - "npm: {{ npm_version.stdout }}"

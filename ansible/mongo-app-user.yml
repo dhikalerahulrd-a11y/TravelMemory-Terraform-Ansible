@@ -1,0 +1,25 @@
+
+---
+- name: Create TravelMemory application user
+  hosts: db
+  become: true
+
+  vars:
+    ansible_python_interpreter: /opt/mongodb-venv/bin/python
+
+  tasks:
+    - name: Create TravelMemory database user
+      community.mongodb.mongodb_user:
+        database: travelmemory
+        name: travelmemory_app
+        password: "{{ mongo_app_password }}"
+        roles:
+          - db: travelmemory
+            role: readWrite
+        state: present
+        login_host: 127.0.0.1
+        login_port: 27017
+        login_user: travelmemory_admin
+        login_password: "{{ mongo_admin_password }}"
+        login_database: admin
+      no_log: true

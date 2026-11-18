@@ -1,0 +1,80 @@
+# Terraform
+**/.terraform/
+**/*.tfstate
+**/*.tfstate.*
+**/*.tfplan
+**/crash.log
+**/.terraform.tfvars
+**/terraform.tfvars
+**/terraform.tfvars.json
+**/override.tf
+**/override.tf.json
+**/*_override.tf
+**/*_override.tf.json
+
+# Ansible secrets
+**/vault.yml
+**/vault.yml.*
+**/.vault_pass*
+**/inventory/hosts.ini
+
+# Environment files
+**/.env
+**/.env.*
+!**/.env.example
+
+# SSH keys
+**/*.pem
+**/*.key
+**/id_rsa
+**/id_ed25519
+**/travelmemory-key
+
+# Dependencies
+**/node_modules/
+**/build/
+**/dist/
+
+# Python
+**/.venv/
+**/venv/
+**/__pycache__/
+
+# Local files
+.DS_Store
+
+
+# AWS CLI installer
+/aws/
+/awscliv2.zip
+
+# Terraform plans and state
+**/*tfplan*
+**/*.tfstate
+**/*.tfstate.*
+**/.terraform/
+**/terraform.tfvars
+**/terraform.tfvars.json
+
+# Ansible backups and secrets
+**/*.backup
+**/vault.yml
+**/vault.yml.*
+**/.vault_pass*
+**/inventory/hosts.ini
+
+# Application secrets
+**/.env
+**/.env.*
+!**/.env.example
+
+# SSH private keys
+**/*.pem
+**/*.key
+**/id_rsa
+**/id_ed25519
+
+# Dependencies
+**/node_modules/
+**/build/
+**/.venv/

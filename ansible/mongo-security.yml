@@ -1,0 +1,32 @@
+
+---
+- name: Secure MongoDB database
+  hosts: db
+  become: true
+  gather_facts: true
+
+  tasks:
+    - name: Deploy MongoDB secure configuration
+      ansible.builtin.template:
+        src: templates/mongod.conf.j2
+        dest: /etc/mongod.conf
+        owner: root
+        group: root
+        mode: "0644"
+        backup: true
+      notify: Restart MongoDB
+
+    - name: Apply pending MongoDB restart
+      ansible.builtin.meta: flush_handlers
+
+    - name: Verify MongoDB service is running
+      ansible.builtin.systemd:
+        name: mongod
+        state: started
+        enabled: true
+
+  handlers:
+    - name: Restart MongoDB
+      ansible.builtin.systemd:
+        name: mongod
+        state: restarted

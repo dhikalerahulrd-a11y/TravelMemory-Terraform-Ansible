@@ -1,0 +1,40 @@
+
+---
+- name: Create initial MongoDB users
+  hosts: db
+  become: true
+
+  tasks:
+    - name: Ensure MongoDB is running
+      ansible.builtin.systemd:
+        name: mongod
+        state: started
+
+    - name: Create MongoDB admin user
+      community.mongodb.mongodb_user:
+        database: admin
+        name: travelmemory_admin
+        password: "{{ mongo_admin_password }}"
+        roles:
+          - root
+        state: present
+        login_host: 127.0.0.1
+        login_port: 27017
+        login_database: admin
+      no_log: true
+
+    - name: Create TravelMemory application user
+      community.mongodb.mongodb_user:
+        database: travelmemory
+        name: travelmemory_app
+        password: "{{ mongo_app_password }}"
+        roles:
+          - db: travelmemory
+            role: readWrite
+        state: present
+        login_host: 127.0.0.1
+        login_port: 27017
+        login_user: travelmemory_admin
+        login_password: "{{ mongo_admin_password }}"
+        login_database: admin
+      no_log: true
